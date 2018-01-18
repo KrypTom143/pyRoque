@@ -1,3 +1,4 @@
+import sys
 import click
 import re
 from collections import namedtuple
@@ -47,18 +48,25 @@ life = 100
 def Look():
     click.echo("You see nothing")
 
+def Eat():
+    click.echo('Nothing to eat')    
+
 def TryMoveBy(x,y):
     return True
 
 def Help():
-    click.echo("Available commands:\n")
-    click.echo("\tl/look\n")
-    click.echo("\tn/s/w/e for moving\n")
-    click.echo("\tquit\n")
-    click.echo("\thelp\n\n")
+    click.echo("Available commands:")
+    click.echo("\tw/a/s/d for moving")
+    click.echo("\th = help")
+    click.echo("\tq = quit")
     click.echo("Everywhere are Zombies, they come after you.")
     click.echo("Try to find the helicopter before you are dead.")
     click.echo("\n\n")
+
+def Quit():
+    click.echo("You killed yourself.")
+    sys.exit(1)
+
 
 def main():
     click.echo("Welcome to the zombie city, try to find the helicopter to escape.")
@@ -70,34 +78,15 @@ def main():
         click.echo('[%s]>' % life)
         key = click.getchar()
 
-        options = { 'w' : TryMoveBy(0,1),
-                    'a' : TryMoveBy(-1,0),
-                    'h' : Help() 
-        }
-
-        options[key]()
-
-#        if (key == 'h'):
-#            help()
-#        elif (key == 'w'):
-#            if(TryMoveBy(0, -1)):
-#                Look()
-#        elif (key == 'a'):
-#            if(TryMoveBy(-1, 0)):
-#                Look()
-#        elif (key == 's'):
-#            if(TryMoveBy(0, 1)):
-#                Look()
-#        elif (key == 'd'):
-#            if(TryMoveBy(1, 0)):
-#                Look()
-#        elif (key == 'e'):
-#            click.echo('Nothing to eat')
-#        elif (key == 'q'):
-#            break
-#        else:
-#            continue
+        if key == 'h': Help()
+        if key == 'w' and TryMoveBy( 0, -1): Look()                  
+        if key == 'a' and TryMoveBy(-1,  0): Look()
+        if key == 's' and TryMoveBy( 0,  1): Look()
+        if key == 'd' and TryMoveBy( 1,  0): Look()
+        if key == 'e': Eat()
+        if key == 'q': Quit()
 
     click.echo('You have died.')
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()
