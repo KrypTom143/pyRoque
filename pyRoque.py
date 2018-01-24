@@ -3,7 +3,6 @@ import random
 import re
 import sys
 from collections import namedtuple
-from collections import OrderedDict
 
 class MoneyType:
     def __init__(self, name, worth, weight):
@@ -44,109 +43,100 @@ class Room:
 class Maze:
     # A maze contains rooms
     def __init__(self):
-        self.rooms = OrderedDict()
+        self.rooms = dict()
 
     # Generate a room at given coordinates.
     # The "model" room will help the maze generator generate
     # similar rooms in nearby locations
     def GenerateRoom(self, x, y, model, seed):
-        if not (self.rooms.get(x)):
-            self.rooms[x] = OrderedDict()
-        if not (self.rooms[x].get(y)):
+        random.seed(x * 3.141 + y * 19820000000)
+
+        if not (x in self.rooms):
+            self.rooms[x] = dict()
+        if not (y in self.rooms[x]):
+            if (random.random() < .4):
+                model.Wall = 2 if (random.random() < 0.4) else 0
             self.rooms[x][y] = model
-        room = self.rooms[x][y]
+            #click.echo("Created({},{})".format(x,y))
         
-        if (random.random() < 2):
-            room.Wall = 0 if (random.random() < 4) else 2
-        return room
+        return self.rooms[x][y]
     
     # Describe the room with a single character
-    def Char(self, x,y):
-        if (self.rooms[x][y].Wall):
-            return '#'
-        return '.' 
+    def Char(self, x, y):
+        try:
+            if not (x in self.rooms) and not (y in self.rooms[x]):
+                return '_'
+            else:
+                return '#' if (self.rooms[x][y].Wall) else '.'
+        except KeyError as err:
+            click.echo("Fail: {}".format(err))
+        return ' '
+
+class Player:
+    def __init__(self):
+        self.x = 0
+        self.y = 0
+        self.life = 100
+
+    def EatLife(self, l):
+        msg = ''
+        if (self.life >= 800 and self.life-l<800):
+            msg = 'You are so hungry!'
+        if (self.life >= 150 and self.life-l<150):
+            msg = 'You are famished!'
+        if (self.life >= 70 and self.life-l<70):
+            msg = 'You are about to collapse any second'
+        self.life -= l
+        if (msg):
+            click.echo(msg)  
 
 
-            
-defaultRoom = Room()
-
-# Player's location and life
-x = 0
-y = 0
-life = 100
-
-maze = Maze()
-
-def CanMoveTo(wherex, wherey, model = defaultRoom):
+def CanMoveTo(wherex, wherey, model = Room()):
     if not maze.GenerateRoom(wherex, wherey, model, 0).Wall:
         return True
     return False
 
-def Spawn4Rooms(x, y, room):
-    for p in [ 1,3,5,7 ]:
-        maze.GenerateRoom(x + p%3-1, y + p/3-1, room, (p+1)/2)
+def Spawn4Rooms(wherex, wherey, room = Room()):
+    # click.echo("Spawn4Rooms({},{})".format(x,y))
+    for px in range(wherex-5, wherey+5, 1):
+        for py in range(wherex-5, wherey+5, 1):
+            maze.GenerateRoom(px, py, room, px*py)
 
-def SpawnRooms(wherex, wherey, model = defaultRoom):
+def SpawnRooms(wherex, wherey, model = Room()):
+    # click.echo("SpawnRooms({},{})".format(x,y))
     room = maze.GenerateRoom(wherex, wherey, model, 0)
-    Spawn4Rooms(wherex, wherey, room)
-    for o in range(5):
-        if (o<5 and CanMoveTo(wherex, wherey+o, room)):
-            ++o
-            Spawn4Rooms(wherex,wherey+o,room)
-    for o in range(5):
-        if (o<5 and CanMoveTo(wherex, wherey-o, room)):
-            ++o
-            Spawn4Rooms(wherex,wherey-o,room)
-    for o in range(6):
-        if (o<6 and CanMoveTo(wherex-o, wherey, room)):
-            ++o
-            Spawn4Rooms(wherex+o,wherey,room)
-    for o in range(6):
-        if (o<6 and CanMoveTo(wherex+o, wherey, room)):
-            ++o
-            Spawn4Rooms(wherex-o,wherey,room)
+    Spawn4Rooms(wherex, wherey)
+
+    for o in range(1,5,1):
+        Spawn4Rooms(wherex, wherey+o, room)
+        Spawn4Rooms(wherex, wherey-o, room)
+    for o in range(1,6,1):
+        Spawn4Rooms(wherex-o, wherey, room)
+        Spawn4Rooms(wherex+o, wherey, room)
     return room 
 
 def Look():
     # Generate rooms in the field of vision of the player
-    room = SpawnRooms(x,y)
+    room = SpawnRooms(player.x, player.y)
 
     # Generate the current map view
-    mapgraph = OrderedDict()
-    for yo in range(-4, 4, 1):
+    for yo in range(-5, 5, 1):
         line = ''
-        for xo in range(-5, 5, 1):
-            c = maze.Char(x+xo, y+yo) if (xo==0 and yo==0) else '@'
-            line += c
-        print line
+        for xo in range(-4, 4, 1):
+            line += '@' if (xo==0 and yo==0) else maze.Char(player.x + xo, player.y + yo)
+        click.echo(line)
 
-    # This is the text that will be printed on the right side of
-    # the map
-    
-    #info_str =
-    #str("In a %s tunnel at %+3ld,%+3ld\n"_f % EnvTypes[room.Env].name % x % -y
-    #  + "Exits:%s%s%s%s\n\n"_f
-    #    % (CanMoveTo(x+0, y-1) ? " north" : "")
-    #    % (CanMoveTo(x+0, y+1) ? " south" : "")
-    #    % (CanMoveTo(x-1, y+0) ? " west" : "")
-    #    % (CanMoveTo(x+1, y+0) ? " east" : "");
-#
-    #// Print the map and the information side by side.
-    #auto m = mapgraph.begin();
-    #auto b = info_str.begin(), e = info_str.end();
-    #auto pat = "([^\n]*)\n"_r;
-    #for(std::smatch res; m != mapgraph.end() || b != e; res = std::smatch{})
-    #{
-    #    if(b != e) { std::regex_search(b, e, res, pat); b = res[0].second; }
-    #    std::string sa = m!=mapgraph.end() ? *m++ : std::string(11,' ');
-    #    std::string sb = res[1];
-    #    std::cout << "%s | %s\n"_f % sa % sb;
-    #}
+  
 
-def Eat():
-    click.echo('Nothing to eat')    
-
-def TryMoveBy(x,y):
+def TryMoveBy(xd, yd):
+    click.echo("{},{}".format(player.x, player.y))
+    # If we are moving diagonally, ensure that there is an actual path.
+    if not CanMoveTo(player.x + xd, player.y + yd) or not CanMoveTo(player.x, player.y + yd) and not CanMoveTo(player.x + xd, player.y):
+        click.echo("You cannot go that way.")
+        return False
+    player.x += xd
+    player.y += yd
+    player.EatLife(1)
     return True
 
 def Help():
@@ -157,31 +147,49 @@ def Help():
     click.echo("Everywhere are Zombies, they come after you.")
     click.echo("Try to find the helicopter before you are dead.")
     click.echo("\n\n")
+    click.echo("You are at [{},{}]".format(x,y))
+    click.echo("Life: {}".format(life))
+    click.echo("\n\n")
 
 def Quit():
     click.echo("You killed yourself.")
     sys.exit(1)
 
 
-def main():
-    click.echo("Welcome to the zombie city, try to find the helicopter to escape.")
-    
+
+maze = Maze()
+player = Player()
+
+def Main():
+    click.echo("Welcome to the zombie city.")
+    click.echo("try to find the helicopter to escape.")
     # the main loop
     Look()
-    while(life > 0):
+    while(player.life > 0):
         # Produce the prompt and wait for player's command
-        click.echo('[%s]>' % life)
+        click.echo("[{},{}    {}]>".format(player.x, player.y, player.life))
         key = click.getchar()
 
-        if key == 'h': Help()
-        if key == 'w' and TryMoveBy( 0, -1): Look()                  
-        if key == 'a' and TryMoveBy(-1,  0): Look()
-        if key == 's' and TryMoveBy( 0,  1): Look()
-        if key == 'd' and TryMoveBy( 1,  0): Look()
-        if key == 'e': Eat()
-        if key == 'q': Quit()
+        if key == 'h':
+            Help()
+        if key == 'w' and TryMoveBy(0, -1):
+            Look()                  
+        if key == 'a' and TryMoveBy(-1, 0):
+            Look()
+        if key == 's' and TryMoveBy(0, 1):
+            Look()
+        if key == 'd' and TryMoveBy(1, 0):
+            Look()
+        if key == 'e':
+            player.EatLife(1)
+        if key == 'q':
+            Quit()
 
     click.echo('You have died.')
 
 if __name__ == "__main__":
-    main()
+    try:
+        Main()
+    except:
+        print("Unexpected error: %s" % sys.exc_info()[0])
+        raise
