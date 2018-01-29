@@ -35,10 +35,9 @@ EnvTypes = [
 ]
 
 class Room:
-    def __init__(self):
-        self.Wall = 0
-        self.Env = 0
-        self.Seed = 0
+    def __init__(self, wall = 0, env = 0):
+        self.Wall = wall
+        self.Env = env
 
 class Maze:
     # A maze contains rooms
@@ -48,17 +47,13 @@ class Maze:
     # Generate a room at given coordinates.
     # The "model" room will help the maze generator generate
     # similar rooms in nearby locations
-    def GenerateRoom(self, x, y, model, seed):
-        random.seed(x * 3.141 + y * 19820000000)
-
+    def GenerateRoom(self, x, y, model):
         if not (x in self.rooms):
             self.rooms[x] = dict()
         if not (y in self.rooms[x]):
             if (random.random() < .4):
                 model.Wall = 2 if (random.random() < 0.4) else 0
-            self.rooms[x][y] = model
-            #click.echo("Created({},{})".format(x,y))
-        
+                self.rooms[x][y] = Room(model.Wall, model.Env)
         return self.rooms[x][y]
     
     # Describe the room with a single character
@@ -88,8 +83,7 @@ class Player:
             msg = 'You are about to collapse any second'
         self.life -= l
         if (msg):
-            click.echo(msg)  
-
+            click.echo(msg)
 
 def CanMoveTo(wherex, wherey, model = Room()):
     if not maze.GenerateRoom(wherex, wherey, model, 0).Wall:
@@ -98,13 +92,13 @@ def CanMoveTo(wherex, wherey, model = Room()):
 
 def Spawn4Rooms(wherex, wherey, room = Room()):
     # click.echo("Spawn4Rooms({},{})".format(x,y))
-    for px in range(wherex-5, wherey+5, 1):
-        for py in range(wherex-5, wherey+5, 1):
-            maze.GenerateRoom(px, py, room, px*py)
+    for px in range(wherex-5, wherex+5, 1):
+        for py in range(wherey-5, wherey+5, 1):
+            maze.GenerateRoom(px, py, room)
 
 def SpawnRooms(wherex, wherey, model = Room()):
     # click.echo("SpawnRooms({},{})".format(x,y))
-    room = maze.GenerateRoom(wherex, wherey, model, 0)
+    room = maze.GenerateRoom(wherex, wherey, model)
     Spawn4Rooms(wherex, wherey)
 
     for o in range(1,5,1):
@@ -113,27 +107,24 @@ def SpawnRooms(wherex, wherey, model = Room()):
     for o in range(1,6,1):
         Spawn4Rooms(wherex-o, wherey, room)
         Spawn4Rooms(wherex+o, wherey, room)
-    return room 
 
 def Look():
     # Generate rooms in the field of vision of the player
-    room = SpawnRooms(player.x, player.y)
+    SpawnRooms(player.x, player.y)
 
     # Generate the current map view
-    for yo in range(-5, 5, 1):
+    for yo in range(player.y-5, player.y+5, 1):
         line = ''
-        for xo in range(-4, 4, 1):
-            line += '@' if (xo==0 and yo==0) else maze.Char(player.x + xo, player.y + yo)
+        for xo in range(player.x-4, player.x+4, 1):
+            line += '@' if (xo==player.x and yo==player.y) else maze.Char(xo, yo)
         click.echo(line)
 
-  
-
 def TryMoveBy(xd, yd):
-    click.echo("{},{}".format(player.x, player.y))
+    click.echo("{}+{},{}+{}".format(player.x, xd, player.y, yd))
     # If we are moving diagonally, ensure that there is an actual path.
-    if not CanMoveTo(player.x + xd, player.y + yd) or not CanMoveTo(player.x, player.y + yd) and not CanMoveTo(player.x + xd, player.y):
-        click.echo("You cannot go that way.")
-        return False
+    # if not CanMoveTo(player.x + xd, player.y + yd) or not CanMoveTo(player.x, player.y + yd) and not CanMoveTo(player.x + xd, player.y):
+    #     click.echo("You cannot go that way.")
+    #     return False
     player.x += xd
     player.y += yd
     player.EatLife(1)
@@ -155,8 +146,6 @@ def Quit():
     click.echo("You killed yourself.")
     sys.exit(1)
 
-
-
 maze = Maze()
 player = Player()
 
@@ -168,22 +157,17 @@ def Main():
     while(player.life > 0):
         # Produce the prompt and wait for player's command
         click.echo("[{},{}    {}]>".format(player.x, player.y, player.life))
+        
         key = click.getchar()
 
-        if key == 'h':
-            Help()
-        if key == 'w' and TryMoveBy(0, -1):
-            Look()                  
-        if key == 'a' and TryMoveBy(-1, 0):
-            Look()
-        if key == 's' and TryMoveBy(0, 1):
-            Look()
-        if key == 'd' and TryMoveBy(1, 0):
-            Look()
-        if key == 'e':
-            player.EatLife(1)
-        if key == 'q':
-            Quit()
+        if key == 'h': Help()
+        elif key == 'w' and TryMoveBy(0, -1): Look()                  
+        elif key == 'a' and TryMoveBy(-1, 0): Look()
+        elif key == 's' and TryMoveBy(0, 1): Look()
+        elif key == 'd' and TryMoveBy(1, 0): Look()
+        elif key == 'e': player.EatLife(1)
+        elif key == 'q': Quit()
+        else: Look()
 
     click.echo('You have died.')
 
